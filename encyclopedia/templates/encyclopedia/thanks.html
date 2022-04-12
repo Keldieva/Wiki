@@ -1,0 +1,23 @@
+{% extends "encyclopedia/layout.html" %}
+
+{% block title %}
+    Error | Entry not found: {{title}}
+{% endblock %}
+
+{% block body %}
+
+  <h1> Error: Entry "{{title}}" does not exist</h1>
+
+  <p>The requested page "{{title}}" does not exist.</p>
+  <p>Click <a href="{% url 'index' %}">the home page</a> to see available pages.</p>
+
+  {% if existing_titles %}
+  <p>Entries:</p>
+    <ul>
+      {% for title in existing_titles %}
+      <li><a href="{% url 'entries' title=title %}">{{title}}</a></li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+{% endblock %}
