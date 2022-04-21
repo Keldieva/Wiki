@@ -46,14 +46,12 @@ class SearchForm(forms.Form):
 
 
 class CreateForm(forms.Form):
-    title = forms.CharField(
-        label="Title")
-    textarea = forms.CharField(
-        widget=forms.Textarea(),
-        label='')
+    title = forms.CharField(label="Title")
+    textarea = forms.CharField(widget=forms.Textarea(), label='')
 
 
 def index(request):
+
     return render(request, "encyclopedia/index.html", {
         "entries": util.list_entries(),
         "search_form": SearchForm()
@@ -64,6 +62,7 @@ def entries(request, entry):
     if entry not in util.list_entries():
         raise Http404
     content = util.get_entry(entry)
+
     return render(
         request,
         "encyclopedia/wiki.html",
@@ -73,43 +72,42 @@ def entries(request, entry):
 
 def add(request):
     if request.method == "GET":
-        return render(request, "encyclopedia/Add.html", {
+        return render(request, "encyclopedia/add.html", {
             "form": NewEntryForm(),
             "search": SearchForm()
         })
 
-    form = NewEntryForm(request.POST)
-    if form.is_valid():
-        title = form.cleaned_data.get("title")
-        content = form.cleaned_data.get("content")
+    if request.method == "POST":
+        form = NewEntryForm(request.POST)
+        if form.is_valid():
+            title = form.data.get("title")
+            content = form.data.get("content")
 
-        if title.lower() in [entry.lower() for entry in util.list_entries()]:
-            messages.add_message(
-                request,
-                messages.WARNING,
-                message=f'Entry "{title}" already exists',
-            )
+            if title.lower() in [entry_name.lower() for entry_name in util.list_entries()]:
+                messages.add_message(
+                    request,
+                    messages.WARNING,
+                    message=f'Entry "{title}" already exists',
+                )
+            else:
+                with open(f"entries/{title}.md", "w") as file:
+                    file.write(f"# {title}\n")
+                    file.write(content)
+
+                return redirect(reverse('entries', args=[title]))
+
         else:
-            with open(f"entries/{title}.md", "w") as file:
-                file.write(content)
-            return HttpResponseRedirect("encyclopedia/Add.html")
+            return render(request, "encyclopedia/add.html")
 
     else:
-        messages.add_message(
-            request, messages.WARNING, message="Invalid request form"
-        )
-
-    return render(
-        request,
-        "encyclopedia/Add.html",
-        {"form": form},
-    )
+        messages.add_message(request, messages.WARNING, message="Invalid request form")
 
 
 def wiki(request):
     if entries not in util.list_entries():
         raise Http404
     content = util.get_entry(entries)
+
     return render(
         request,
         "encyclopedia/wiki.html",
@@ -121,11 +119,13 @@ def change(request, title):
     if request.method == "GET":
         text = util.get_entry(title)
         form = NewEntryForm({"title": title, "content": text})
-        return render(request, "encyclopedia/change.html",
-                      {"form": form,
-                       "title": title},
-                      )
-    elif request.method == "POST":
+
+        return render(request, "encyclopedia/change.html", {
+            "form": form,
+            "title": title
+        })
+
+    if request.method == "POST":
         form = NewEntryForm(request.POST)
 
         if form.is_valid():
@@ -133,7 +133,8 @@ def change(request, title):
             content = form.cleaned_data.get("content")
             util.save_entry(title=title, content=content)
             messages.success(request, f'Entry "{entries}" updated successfully!')
-            return redirect(reverse('entry', args=[title]))
+
+            return redirect(reverse('entries', args=[title]))
 
         else:
             title = entry
@@ -143,36 +144,6 @@ def change(request, title):
                 "edit_form": form,
                 "search_form": SearchForm()
             })
-
-    return HttpResponseRedirect("encyclopedia/wiki.html")
-
-
-'''def change(request, title):
-    if request.method == "GET":
-        content = util.get_entry(title)
-        return render(request, "encyclopedia/edit.html", {
-          "title": title,
-          "edit_form": EditForm(initial={'text':text}),
-          "search_form": SearchForm()
-        })
-
-    # If reached via posting form, updated page and redirect to page:
-    elif request.method == "POST":
-        form = EditForm(request.POST)
-
-        if form.is_valid():
-          text = form.cleaned_data['text']
-          util.save_entry(title, text)
-          messages.success(request, f'Entry "{title}" updated successfully!')
-          return redirect(reverse('entry', args=[title]))
-
-        else:
-          messages.error(request, f'Editing form not valid, please try again!')
-          return render(request, "encyclopedia/edit.html", {
-            "title": title,
-            "edit_form": form,
-            "search_form": SearchForm()
-          })'''
 
 
 def entry(request, name):
@@ -184,6 +155,7 @@ def entry(request, name):
         return HttpResponseNotFound('<h1>Page not found</h1>')
     # convert markdown into HTML
     entry = Markdown.convert(entry)
+
     return render(request, "encyclopedia/entry.html", {
         "name": name,
         "entry": entry
@@ -202,6 +174,7 @@ def search(request):
     if entry:
         # convert markdown into HTML
         entries = Markdown.convert(entry)
+
         return redirect("entry", title)
 
     result = []
